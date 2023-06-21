@@ -10,7 +10,8 @@ import (
 const (
 	DepositoDir     = "./deposito/"
 	MAX_HEADER_SIZE = 50        // Tamanho máximo do cabeçalho em bytes
-	MAX_FILESIZE    = 1024 * 10 // Tamanho máximo do arquivo em bytes
+	MAX_FILE_SIZE   = 1024 * 10 // Tamanho máximo do arquivo em bytes
+	TOTAL_SIZE      = MAX_FILE_SIZE + MAX_HEADER_SIZE
 )
 
 func main() {
@@ -39,7 +40,7 @@ func handleConnection(conn net.Conn) {
 
 	for {
 		// Ler requisição do cliente
-		request := make([]byte, MAX_HEADER_SIZE)
+		request := make([]byte, TOTAL_SIZE)
 		n, err := conn.Read(request)
 		if err != nil {
 			if err != io.EOF {
@@ -52,12 +53,12 @@ func handleConnection(conn net.Conn) {
 		}
 
 		// Parse the request
-		params := parseRequestParams(request)
+		params, fileData := parseRequestParams(request)
 
 		// Execute the appropriate command
 		switch params[0] {
 		case "deposito":
-			err = handleDeposito(conn, params)
+			err = handleDeposito(conn, params, fileData)
 			if err != nil {
 				break
 			}
@@ -74,17 +75,30 @@ func handleConnection(conn net.Conn) {
 	}
 }
 
-func parseRequestParams(request []byte) []string {
+func parseRequestParams(request []byte) ([]string, string) {
 	var splittedParams []string
 
-	params := strings.Split(string(request), "|")
+	headerData := []byte{}
+	fileData := []byte{}
+
+	for i := 0; i < TOTAL_SIZE; i++ {
+		if request[i] != 0 {
+			if i < MAX_HEADER_SIZE {
+				headerData = append(headerData, request[i])
+			} else if i >= MAX_HEADER_SIZE && i < MAX_FILE_SIZE {
+				fileData = append(fileData, request[i])
+			}
+		}
+	}
+
+	params := strings.Split(string(headerData), "|")
 	for _, param := range strings.Split(params[0], " ") {
 		if param != "" {
 			splittedParams = append(splittedParams, param)
 		}
 	}
 
-	return splittedParams
+	return splittedParams, string(fileData)
 }
 
 func sendResponse(conn net.Conn, response string) {

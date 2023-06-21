@@ -10,10 +10,11 @@ import (
 )
 
 const (
-	DepositoDir = "./arquivos/deposito/"
-	RecuperacaoDir = "./arquivos/recuperacao/"
-	MAX_HEADER_SIZE = 50 // Tamanho máximo do cabeçalho em bytes
-	MAX_FILESIZE = 1024 * 10 // Tamanho máximo do arquivo em bytes
+	DepositoDir     = "./arquivos/deposito/"
+	RecuperacaoDir  = "./arquivos/recuperacao/"
+	MAX_HEADER_SIZE = 50        // Tamanho máximo do cabeçalho em bytes
+	MAX_FILE_SIZE   = 1024 * 10 // Tamanho máximo do arquivo em bytes
+	TOTAL_SIZE      = MAX_FILE_SIZE + MAX_HEADER_SIZE
 )
 
 // Interface do padrão command + simple factory

@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"net"
 	"os"
 )
@@ -36,28 +36,36 @@ func (c *DepositoCommand) execute(args []string) {
 	}
 
 	fileSize := fileInfo.Size()
-
-	// buffHeader := make([]byte, HEADER_SIZE)
-	// buffFile := make([]byte, MAX_FILESIZE)
-
-	// Envia as primeiras informações "nome do arquivo" e "quantidade de replicas"
-	headerBytes := make([]byte, MAX_HEADER_SIZE)
-	headerBytes = []byte(fmt.Sprintf("%s %s %d %s|", comando, filename, fileSize, qtd_replicas))
-
-	_, err = c.conexao.Write(headerBytes)
-	if err != nil {
-		fmt.Println("erro ao enviar cabeçalho: ", err)
+	if fileSize > MAX_FILE_SIZE {
+		fmt.Println("file too big, max size allowed: ", MAX_FILE_SIZE)
 		return
 	}
 
-	sendBuffer := make([]byte, fileInfo.Size())
-	for {
-		_, err = file.Read(sendBuffer)
-		if err == io.EOF {
-			break
-		}
+	// Envia as primeiras informações "nome do arquivo" e "quantidade de replicas"
+	var sendBuffer bytes.Buffer
 
-		c.conexao.Write(sendBuffer)
+	headerBytes := make([]byte, MAX_HEADER_SIZE)
+	headerData := []byte(fmt.Sprintf("%s %s %s|", comando, filename, qtd_replicas))
+	for i := 0; i < MAX_HEADER_SIZE; i++ {
+		if i < len(headerData) {
+			headerBytes[i] = headerData[i]
+		}
+	}
+
+	fileBytes := make([]byte, MAX_FILE_SIZE)
+	_, err = file.Read(fileBytes)
+	if err != nil {
+		fmt.Println("error saving file into buffer")
+		return
+	}
+
+	sendBuffer.Write(headerBytes)
+	sendBuffer.Write(fileBytes)
+
+	_, err = c.conexao.Write(sendBuffer.Bytes())
+	if err != nil {
+		fmt.Println("error sending data")
+		return
 	}
 
 	// Process the response from the server
