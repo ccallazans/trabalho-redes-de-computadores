@@ -1,20 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"math/rand"
 	"net"
 	"os"
+	"strings"
 )
 
 func handleRecuperacao(conn net.Conn, params []string) error {
-
+	fmt.Println("Aqui inicio total ->> ")
 	if len(params) != 2 {
 		sendResponse(conn, "Invalid recovery command format")
 		return errors.New("invalid recovery command format")
 	}
+	fmt.Println("Aqui inicio ->> ")
 
 	filename := params[1]
 	file, err := recoverFile(filename)
@@ -26,20 +28,30 @@ func handleRecuperacao(conn net.Conn, params []string) error {
 		sendResponse(conn, fmt.Sprintf("File '%s' not found", filename))
 		return fmt.Errorf("file '%s' not found", filename)
 	}
-	defer file.Close()
 
-	fmt.Println(file)
+	var sendBuffer bytes.Buffer
 
-	_, err = io.Copy(conn, file)
+	fileBytes := make([]byte, MAX_FILE_SIZE)
+	_, err = file.Read(fileBytes)
 	if err != nil {
-		sendResponse(conn, fmt.Sprintf("Error sending file: %v", err))
-		return fmt.Errorf("error sending file: %v", err)
+		fmt.Println("error saving file into buffer")
+		return fmt.Errorf("error saving file into buffer")
 	}
+	sendBuffer.Write(fileBytes)
+
+	fmt.Println("Aqui2 ->> ")
+	_, err = conn.Write(sendBuffer.Bytes())
+	if err != nil {
+		fmt.Println("error sending data")
+		return fmt.Errorf("error sending data")
+	}
+
+	conn.Close()
 
 	return nil
 }
 
-func recoverFile(filename string) (io.ReadCloser, error) {
+func recoverFile(filename string) (*os.File, error) {
 	replicas, err := findReplicas(filename)
 	if err != nil {
 		return nil, err
@@ -66,10 +78,11 @@ func findReplicas(filename string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println(files)
 	for _, file := range files {
+		name := strings.SplitN(file.Name(), "_", 2)
 
-		if !file.IsDir() && file.Name()[:len(file.Name())-2] == filename {
+		if !file.IsDir() && name[1] == filename {
 			replicas = append(replicas, file.Name())
 		}
 	}

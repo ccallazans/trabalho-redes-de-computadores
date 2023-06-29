@@ -1,14 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"net"
 	"os"
 )
 
 type DepositoCommand struct {
-	conexao net.Conn
+	connection net.Conn
 }
 
 func (c *DepositoCommand) execute(args []string) {
@@ -17,9 +16,9 @@ func (c *DepositoCommand) execute(args []string) {
 		return
 	}
 
-	comando := args[0]
+	command := args[0]
 	filename := args[1]
-	qtd_replicas := args[2]
+	quantityReplicas := args[2]
 
 	// Abrir arquivo para ser enviado
 	file, err := os.Open(DepositoDir + filename)
@@ -29,63 +28,55 @@ func (c *DepositoCommand) execute(args []string) {
 	}
 	defer file.Close()
 
-	fileInfo, err := file.Stat()
+	size := getFileInfo(file)
+	if size == 0 {
+		fmt.Println("arquivo vazio: ", filename)
+		return
+	}
+
+	// Cria um buffer de envio vazio no qual vamos preencher com as informações
+	headerBuffer := make([]byte, 50)
+	copy(headerBuffer, fmt.Sprintf("%s %s %s %d%s", command, filename, quantityReplicas, size, HEADER_DEMILITER))
+	c.connection.Write(headerBuffer)
+
+	fmt.Println("passou daqui")
+
+	fileBuffer := make([]byte, size)
+	n, err := file.Read(fileBuffer)
 	if err != nil {
-		fmt.Println("erro ao extrair informação do arquivo: ", err)
+		fmt.Println("erro ler arquivo para buffer: ", err)
+		return
+	}
+	if n != int(size) {
+		fmt.Println("divergencia entre bytes: ", n, int(size))
 		return
 	}
 
-	fileSize := fileInfo.Size()
-	if fileSize > MAX_FILE_SIZE {
-		fmt.Println("file too big, max size allowed: ", MAX_FILE_SIZE)
-		return
-	}
-
-	// Envia as primeiras informações "nome do arquivo" e "quantidade de replicas"
-	var sendBuffer bytes.Buffer
-
-	headerBytes := make([]byte, MAX_HEADER_SIZE)
-	headerData := []byte(fmt.Sprintf("%s %s %s|", comando, filename, qtd_replicas))
-	for i := 0; i < MAX_HEADER_SIZE; i++ {
-		if i < len(headerData) {
-			headerBytes[i] = headerData[i]
-		}
-	}
-
-	fileBytes := make([]byte, MAX_FILE_SIZE)
-	_, err = file.Read(fileBytes)
-	if err != nil {
-		fmt.Println("error saving file into buffer")
-		return
-	}
-
-	sendBuffer.Write(headerBytes)
-	sendBuffer.Write(fileBytes)
-
-	_, err = c.conexao.Write(sendBuffer.Bytes())
+	_, err = c.connection.Write(fileBuffer) // Envia a requisição
 	if err != nil {
 		fmt.Println("error sending data")
 		return
 	}
 
-	// Process the response from the server
-	response, err := readResponse(c.conexao)
-	if err != nil {
-		fmt.Println("Erro ao ler a resposta do servidor:", err)
-		return
-	}
 
-	fmt.Println("Response:", response)
+
+	a, _ := os.Create("asdasdas.png")
+	a.Write(fileBuffer)
+
 }
 
-func fillString(retunString string, toLength int) string {
-	for {
-		lengthString := len(retunString)
-		if lengthString < toLength {
-			retunString = retunString + ":"
-			continue
-		}
-		break
+func getFileInfo(file *os.File) int64 {
+	fileInfo, err := file.Stat()
+	if err != nil {
+		fmt.Println("erro ao extrair informações do arquivo: ", file.Name(), err)
+		return 0
 	}
-	return retunString
+
+	fileSize := fileInfo.Size()
+	if fileSize > MAX_FILE_SIZE {
+		fmt.Printf("arquivo muito grande, tamanho máximo permitido: %d, arquivo contém %d\n", MAX_FILE_SIZE, fileSize)
+		return 0
+	}
+
+	return fileSize
 }

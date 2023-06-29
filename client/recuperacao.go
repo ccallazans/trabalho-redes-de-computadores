@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -8,7 +9,7 @@ import (
 )
 
 type RecuperacaoCommand struct {
-	conexao net.Conn
+	connection net.Conn
 }
 
 func (c *RecuperacaoCommand) execute(args []string) {
@@ -17,40 +18,41 @@ func (c *RecuperacaoCommand) execute(args []string) {
 		return
 	}
 
-	comando := args[0]
+	command := args[0]
 	filename := args[1]
 
-	// Envia as primeiras informações "nome do arquivo" e "quantidade de replicas"
-	_, err := c.conexao.Write([]byte(comando + " " + filename + "|"))
+	// Cria um buffer de envio vazio no qual vamos preencher com as informações
+
+	header := fmt.Sprintf("%s %s%s", command, filename, HEADER_DEMILITER) // Criar buffer para o cabeçalho da requisição contendo "comando" e "nome do arquivo")
+	c.connection.Write([]byte(header)) // Salva o header no nosso buffer de envio
+
+	fmt.Println("Aqui")
+
+	var response bytes.Buffer
+	_, err := io.Copy(&response, c.connection)
 	if err != nil {
-		fmt.Println("erro ao enviar o nome do arquivo: ", err)
+		fmt.Println("erro ao recever response:", err)
 		return
 	}
 
-	// Process the response from the server
-	_, err = readResponse(c.conexao)
+	// Parse do arquivo
+	err = saveFile(response.Bytes(), filename)
 	if err != nil {
-		fmt.Println("Error reading response from the server:", err)
+		fmt.Println("erro ao salvar o arquivo:", err)
 		return
 	}
 
-	err = saveFile(c.conexao, filename)
-	if err != nil {
-		fmt.Println("Error saving file:", err)
-		return
-	}
-
-	fmt.Println("File saved successfully.")
+	fmt.Println("arquivo recuperado com sucesso!")
 }
 
-func saveFile(conn net.Conn, filename string) error {
+func saveFile(data []byte, filename string) error {
 	file, err := os.Create(RecuperacaoDir + filename)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, conn)
+	_, err = file.Write(data)
 	if err != nil {
 		return err
 	}

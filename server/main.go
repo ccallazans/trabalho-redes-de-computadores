@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -8,10 +9,11 @@ import (
 )
 
 const (
-	DepositoDir     = "./deposito/"
-	MAX_HEADER_SIZE = 50        // Tamanho máximo do cabeçalho em bytes
-	MAX_FILE_SIZE   = 1024 * 10 // Tamanho máximo do arquivo em bytes
-	TOTAL_SIZE      = MAX_FILE_SIZE + MAX_HEADER_SIZE
+	DepositoDir      = "./deposito/"
+	MAX_HEADER_SIZE  = 50                              // Tamanho máximo do cabeçalho em bytes
+	MAX_FILE_SIZE    = 1 * 1000000 * 10                // Tamanho máximo do arquivo em bytes
+	TOTAL_SIZE       = MAX_FILE_SIZE + MAX_HEADER_SIZE // Tamanho máximo de uma requisição do projeto
+	HEADER_DEMILITER = "##########"
 )
 
 func main() {
@@ -32,42 +34,61 @@ func main() {
 			continue
 		}
 		go handleConnection(conn)
+
 	}
 }
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	for {
-		// Ler requisição do cliente
-		request := make([]byte, TOTAL_SIZE)
-		n, err := conn.Read(request)
-		if err != nil {
-			if err != io.EOF {
-				fmt.Println("Erro ao processar requisição:", err)
-			}
-			break
-		}
-		if n == 0 {
-			continue
-		}
+	// Ler requisição do cliente
+	var request bytes.Buffer
 
-		// Parse the request
-		params, fileData := parseRequestParams(request)
+	headerBuffer := make([]byte, 50)
+	n, err := conn.Read(headerBuffer)
+	if err != nil {
+		if err != io.EOF {
+			fmt.Println("Erro ao processar requisição:", err)
+		}
+		fmt.Println("Erro ao processar requisição2:", err)
+		return
+	}
+	if n == 0 {
 
-		// Execute the appropriate command
+	}
+	fmt.Println(len(headerBuffer))
+	request.Write(headerBuffer)
+
+	// n, err := io.Copy(&request, conn)
+	// if err != nil {
+	// 	if err != io.EOF {
+	// 		fmt.Println("Erro ao processar requisição:", err)
+	// 	}
+	// 	fmt.Println("Erro ao processar requisição2:", err)
+	// 	break
+	// }
+	// if n == 0 {
+	// 	continue
+	// }
+
+	// fmt.Println(len(request.Bytes()))
+
+	// Parse the request
+	params := parseRequestParams(request.Bytes())
+	if params == nil {
+		return
+	}
+
+	// Execute the appropriate command
+	if len(params) > 0 {
 		switch params[0] {
 		case "deposito":
-			err = handleDeposito(conn, params, fileData)
-			if err != nil {
-				break
-			}
+			handleDeposito(conn, params)
+			conn.Write([]byte("File deposited successfully\n"))
 
 		case "recuperacao":
-			err = handleRecuperacao(conn, params)
-			if err != nil {
-				break
-			}
+			handleRecuperacao(conn, params)
+			conn.Write([]byte("File recupered successfully\n"))
 
 		default:
 			sendResponse(conn, "Comando desconhecido")
@@ -75,31 +96,38 @@ func handleConnection(conn net.Conn) {
 	}
 }
 
-func parseRequestParams(request []byte) ([]string, string) {
-	var splittedParams []string
+func parseRequestParams(request []byte) []string {
 
-	headerData := []byte{}
-	fileData := []byte{}
+	allData := string(request)
+	splittedParams := []string{}
 
-	for i := 0; i < TOTAL_SIZE; i++ {
-		if request[i] != 0 {
-			if i < MAX_HEADER_SIZE {
-				headerData = append(headerData, request[i])
-			} else if i >= MAX_HEADER_SIZE && i < MAX_FILE_SIZE {
-				fileData = append(fileData, request[i])
-			}
-		}
-	}
+	params := strings.Split(allData, HEADER_DEMILITER)
 
-	params := strings.Split(string(headerData), "|")
 	for _, param := range strings.Split(params[0], " ") {
-		if param != "" {
-			splittedParams = append(splittedParams, param)
-		}
+		splittedParams = append(splittedParams, param)
 	}
 
-	return splittedParams, string(fileData)
+	if len(splittedParams) != 1 {
+		fmt.Println("splited params - >", splittedParams)
+	}
+
+	return splittedParams
 }
+
+// func parseRequestParams(request []byte) ([]string, string) {
+
+// 	data := bytes.TrimRight(request, "\x00")
+// 	allData := string(data)
+// 	splittedParams := []string{}
+
+// 	params := strings.Split(allData, HEADER_DEMILITER)
+
+// 	for _, param := range strings.Split(params[0], " ") {
+// 		splittedParams = append(splittedParams, param)
+// 	}
+
+// 	return splittedParams, params[1]
+// }
 
 func sendResponse(conn net.Conn, response string) {
 	conn.Write([]byte(response + "\n"))
