@@ -1,6 +1,6 @@
 Trabalho - Redes de Computadores I
 ============
-Aplicação cli que realiza depósitos e recuperação de arquivos no modo cliente-servidor via tcp e sockets.
+Aplicação cli que realiza depósito e recuperação de arquivos no modo cliente-servidor via tcp e sockets.<br />
 100% escrita em Go SEM UTILIZAÇÃO DE DEPENDÊNCIA EXTERNA.
 
 ---
@@ -24,18 +24,19 @@ Realizar o clone do repositório e executar ambas aplicações de servidor e cli
 ## Utilização
 Após realizar o clode do projeto, deverá ser inicializado as aplicações de servidor e cliente em terminais diferentes.
 
-1 - `cd server` e `go run .`
-2 - `cd client` e `go run .`
+Inicializar servidor - `cd server` e `go run .`<br />
+Inicializar cliente - `cd client` e `go run .`<br />
 
-No terminal do servidor, é possível visualizar logs dos processos executados.
-No terminal do cliente, o usuário deverar enviar os comandos de depósito e recuperação
+No terminal do servidor, é possível visualizar logs dos processos executados.<br />
+No terminal do cliente, o usuário deverar enviar os comandos de depósito e recuperação<br />
 
-Cliente:
-Para o cliente realizar o envio de arquivos, deverá colocar o arquivo desejado na pasta `./client/arquivos`. (KNOW BUG: o arquivo não deve conter espaços no nome ex: `nome do arquivo.txt`)
-Quando o cliente solicitar a recuperação de um arquivo específico, o arquivo será salvo na pasta `./client/recuperacao`.
+Cliente:<br />
+Para o cliente realizar o envio de arquivos, deverá colocar o arquivo desejado na pasta `./client/arquivos`. (KNOW BUG: o arquivo não deve conter espaços no nome ex: `nome do arquivo.txt`)<br />
+Quando o cliente solicitar a recuperação de um arquivo específico, o arquivo será salvo na pasta `./client/recuperacao`.<br />
 
-Servidor:
-Quando o cliente realizar o depósito de algum arquivo, suas réplicas serão salvas na pasta `./server/deposito`.
+Servidor:<br />
+Quando o cliente realizar o depósito de algum arquivo, suas réplicas serão salvas na pasta `./server/deposito`.<br />
+
 ---
 
 ## License
