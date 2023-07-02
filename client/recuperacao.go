@@ -60,7 +60,7 @@ func (c *RecuperacaoCommand) execute(args []string) error {
 		return err
 	}
 
-	fmt.Println("Recuperação recuperado com sucesso!")
+	fmt.Println("Recuperação realizada com sucesso!")
 	return nil
 }
 

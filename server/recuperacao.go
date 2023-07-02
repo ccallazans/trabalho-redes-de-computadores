@@ -72,7 +72,6 @@ func recoverFile(filename string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(replicaFile.Name())
 
 	return replicaFile, nil
 }
@@ -83,7 +82,7 @@ func findReplicas(filename string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(files)
+
 	for _, file := range files {
 		name := strings.SplitN(file.Name(), "_", 2)
 
