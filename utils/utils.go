@@ -59,7 +59,7 @@ func SendFile(conn net.Conn, file *os.File, buffSize int) error {
 				return nil
 			}
 
-			return fmt.Errorf("erro ler arquivo para buffer: ", err, n)
+			return fmt.Errorf("erro ler arquivo para buffer: %s, %d", err.Error(), n)
 		}
 
 		_, err = conn.Write(fileBuffer) // Enviar dados para o servidor
