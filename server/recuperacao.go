@@ -61,8 +61,12 @@ func recoverFile(filename string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	
+	if len(replicas) == 0 {
+		return nil, fmt.Errorf("nenhuma réplica encontrada")
+	}
 
-	// Choose a replica randomly for recovery
+	// Escolher replica de maneira aleatória
 	replicaIndex := 0
 	if len(replicas) > 1 {
 		replicaIndex = rand.Intn(len(replicas))

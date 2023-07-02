@@ -53,21 +53,39 @@ func handleDeposito(conn net.Conn, params []string) error {
 
 func createReplicas(filename string, replicas int, data []byte) error {
 
-	for i := 0; i < replicas; i++ {
-		replicaName := fmt.Sprintf("%d_%s", i, filename)
-		replicaFile, err := os.Create(DepositoDir + replicaName)
-		if err != nil {
-			return err
-		}
-		defer replicaFile.Close()
+	existing_replicas, err := findReplicas(filename)
+	if err != nil {
+		return err
+	}
 
-		_, err = replicaFile.Write(data)
-		if err != nil {
+	if len(existing_replicas) == replicas {
+		return nil
+	} else if len(existing_replicas) < replicas {
+		for i := 0; i < replicas; i++ {
+			replicaName := fmt.Sprintf("%d_%s", i, filename)
+			replicaFile, err := os.Create(DepositoDir + replicaName)
+			if err != nil {
+				return err
+			}
+			defer replicaFile.Close()
+
+			_, err = replicaFile.Write(data)
+			if err != nil {
+				replicaFile.Close()
+				return err
+			}
+
 			replicaFile.Close()
-			return err
 		}
-
-		replicaFile.Close()
+	} else {
+		deleteMore := existing_replicas[replicas:]
+		fmt.Println(deleteMore)
+		for _, file := range deleteMore {
+			err := os.Remove(DepositoDir + file)
+			if err != nil {
+				return fmt.Errorf("erro ao ajustar quantidade de replicas")
+			}
+		}
 	}
 
 	return nil
