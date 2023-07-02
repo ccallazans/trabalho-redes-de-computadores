@@ -1,53 +1,58 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"os"
 	"strings"
+
+	"github.com/ccallazans/trabalho-redes-de-computadores/utils"
 )
 
 func handleRecuperacao(conn net.Conn, params []string) error {
-	fmt.Println("Aqui inicio total ->> ")
+	// Validações da requisição
 	if len(params) != 2 {
-		sendResponse(conn, "Invalid recovery command format")
-		return errors.New("invalid recovery command format")
+		return errors.New("comando de recuperação inválido")
 	}
-	fmt.Println("Aqui inicio ->> ")
 
-	filename := params[1]
+	filename := params[1] // Nome do arquivo
+
+	// Recuperar alguma réplica do arquivo
 	file, err := recoverFile(filename)
 	if err != nil {
-		sendResponse(conn, fmt.Sprintf("Error recovering file: %v", err))
-		return fmt.Errorf("error recovering file: %v", err)
+		return fmt.Errorf("erro ao recuperar arquivo: %v", err)
 	}
 	if file == nil {
-		sendResponse(conn, fmt.Sprintf("File '%s' not found", filename))
-		return fmt.Errorf("file '%s' not found", filename)
+		return fmt.Errorf("arquivo '%s' não encontrado", filename)
 	}
 
-	var sendBuffer bytes.Buffer
-
-	fileBytes := make([]byte, MAX_FILE_SIZE)
-	_, err = file.Read(fileBytes)
+	// Tamanho total do arquivo a ser enviado
+	size, err := utils.GetFileInfo(file, MAX_FILE_SIZE)
 	if err != nil {
-		fmt.Println("error saving file into buffer")
-		return fmt.Errorf("error saving file into buffer")
+		return err
 	}
-	sendBuffer.Write(fileBytes)
 
-	fmt.Println("Aqui2 ->> ")
-	_, err = conn.Write(sendBuffer.Bytes())
+	// Escrever um buffer de cabeçalho com informações: tamanho do arquivo
+	err = utils.WriteHeader(conn, HEADER_SIZE, fmt.Sprintf("%d%s", size, HEADER_DEMILITER))
 	if err != nil {
-		fmt.Println("error sending data")
-		return fmt.Errorf("error sending data")
+		return err
 	}
 
-	conn.Close()
+	// Enviar arquivo pela conexão tcp
+	err = utils.SendFile(conn, file, RW_BUFFER)
+	if err != nil {
+		return err
+	}
 
+	// Encerrar conexão
+	err = conn.Close()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Recuperação realizada com sucesso!")
 	return nil
 }
 

@@ -1,64 +1,57 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"strconv"
+
+	"github.com/ccallazans/trabalho-redes-de-computadores/utils"
 )
 
 func handleDeposito(conn net.Conn, params []string) error {
+	// Validações da requisição
 	if len(params) != 4 {
-		sendResponse(conn, "Comando de depósito inválido")
 		return errors.New("comando de depósito inválido")
 	}
 
-	filename := params[1]
-	qtd_replicas, err := strconv.Atoi(params[2])
+	filename := params[1] // Nome do arquivo
+
+	qtd_replicas, err := strconv.Atoi(params[2]) // Quantidade de replicas
 	if err != nil {
-		sendResponse(conn, "Quantidade de replicas inválida")
 		return errors.New("quantidade de replicas inválida")
 	}
-	size := params[3]
+
+	size := params[3] // Tamanho total do arquivo
 	sizeInt, err := strconv.Atoi(size)
 	if err != nil {
-		sendResponse(conn, "Erro ao converter o tamanho do arquivo para int")
-		return errors.New("Erro ao converter o tamanho do arquivo para int")
+		return errors.New("erro ao converter o tamanho do arquivo para int")
 	}
 
-	var fileData *bytes.Buffer
-	for {
-		fileBuffer := make([]byte, 1024)
-		n, err := conn.Read(fileBuffer)
-		if err != nil {
-			if err != io.EOF {
-				fmt.Println("Erro ao processar requisição:", err)
-			}
-			fmt.Println("Erro ao processar requisição2:", err)
-			return err
-		}
-
-		fileData.Write(fileBuffer)
-		if fileBuffer.byte != 0 {
-			fmt.Println("AQUI DEU ZERO -> ", n)
-		}
-	}
-
-
-	err = storeFile(filename, qtd_replicas, fileData)
+	// Receber arquivo via tcp
+	buff, err := utils.ReceiveFile(conn, int64(sizeInt), RW_BUFFER)
 	if err != nil {
-		sendResponse(conn, err.Error())
 		return err
 	}
 
-	sendResponse(conn, "arquivo salvo com sucesso!")
+	// Criar replicas e salvar arquivos
+	err = createReplicas(filename, qtd_replicas, buff.Bytes()[:sizeInt])
+	if err != nil {
+		return err
+	}
+
+	// Encerrar conexão
+	err = conn.Close()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Depósito realizado com sucesso!")
 	return nil
 }
 
-func storeFile(filename string, replicas int, data []byte) error {
+func createReplicas(filename string, replicas int, data []byte) error {
 
 	for i := 0; i < replicas; i++ {
 		replicaName := fmt.Sprintf("%d_%s", i, filename)
